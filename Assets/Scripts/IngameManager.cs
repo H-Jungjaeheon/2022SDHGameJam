@@ -132,6 +132,24 @@ public class IngameManager : Singleton<IngameManager>
         }
     }
 
+    [SerializeField]
+    [Tooltip("최대 스킬 쿨타임")]
+    public float maxSkillCoolTime;
+
+    private float nowSkillCoolTime;
+
+    public float NowSkillCoolTime
+    {
+        get { return nowSkillCoolTime; }
+        set 
+        {
+            if (value < maxSkillCoolTime)
+            {
+                
+            }
+        }
+    }
+
     private NowGameState nowGameState;
 
     private void Awake()
