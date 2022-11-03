@@ -29,10 +29,6 @@ public class IngameManager : Singleton<IngameManager>
     private string[] questions;
     
     [SerializeField]
-    [Tooltip("현재 정답에 대한 질문들의 진짜 답")]
-    private Button[] questionCorrectAnswer;
-
-    [SerializeField]
     [Tooltip("다음 질문으로 넘기기 버튼 오브젝트")]
     private GameObject goNextQuestionButtonObj;
 
@@ -52,10 +48,10 @@ public class IngameManager : Singleton<IngameManager>
     [Tooltip("질문 버튼")]
     private Button[] questionButtons;
 
+    [HideInInspector]
+    public bool[] determiningDuplicateQuestions = new bool[25];
 
-    private bool[] determiningDuplicateQuestions = new bool[25];
-
-    private int[] buttonQuestionIndex = new int[3];
+    private int[] nowSelectedIndexes = new int[3];
 
     [Space(20)]
 
@@ -104,6 +100,10 @@ public class IngameManager : Singleton<IngameManager>
     private TextMeshProUGUI stageGuideText;
 
     [SerializeField]
+    [Tooltip("작성한 정답 텍스트")]
+    private InputField wroteAnswer;
+
+    [SerializeField]
     [Tooltip("최대 제한시간")]
     private int maxLimitTime;
 
@@ -111,9 +111,19 @@ public class IngameManager : Singleton<IngameManager>
     [Tooltip("제한시간 이미지")]
     private Image limitTimeImageBar;
 
+    [SerializeField]
+    [Tooltip("스크롤 리스트 오브젝트")]
+    private GameObject scrollContent;
+
+    [SerializeField]
+    [Tooltip("스크롤 리스트에 추가될 QnA 오브젝트")]
+    private GameObject QnAObj;
+
     private float nowLimitTime;
 
     private bool isTurnOn;
+
+    public bool isAnswering;
 
     public float NowLimitTime
     {
@@ -168,11 +178,11 @@ public class IngameManager : Singleton<IngameManager>
         StartCoroutine(StartAnim());
     }
 
-    //// Update is called once per frame
-    //void Update()
-    //{
-
-    //}
+    // Update is called once per frame
+    void Update()
+    {
+        Timer();
+    }
 
     private void RandAnserSetting()
     {
@@ -211,7 +221,7 @@ public class IngameManager : Singleton<IngameManager>
         isTurnOn = true;
         qnaScrollViewRectTransform.DOAnchorPos(new Vector3(0, -60, 0), 0.25f);
         basicUisObj.SetActive(true);
-        StartCoroutine(Timer());
+        
         nowGameState = NowGameState.Gaming;
 
         questionButtonsObj.SetActive(true);
@@ -219,7 +229,9 @@ public class IngameManager : Singleton<IngameManager>
 
     IEnumerator RandQuestionSetting() //랜덤 질문 세팅
     {
-        int randIndex;
+        int randIndex = 0;
+        
+        
         for (int nowIndex = 0; nowIndex < 3; nowIndex++)
         {
             while (true)
@@ -227,29 +239,29 @@ public class IngameManager : Singleton<IngameManager>
                 randIndex = Random.Range(0, 25);
                 if (determiningDuplicateQuestions[randIndex] == false)
                 {
-                    int nowRandIndex = randIndex;
-                    int nowButtonIndex = nowIndex;
-
+                    determiningDuplicateQuestions[randIndex] = true;
                     answerButtonText[nowIndex].text = questions[randIndex];
-                    buttonQuestionIndex[nowButtonIndex] = nowRandIndex;
-                    questionButtons[nowIndex].onClick.AddListener(() => AnswerButtonClick(nowRandIndex));
+                    nowSelectedIndexes[nowIndex] = randIndex;
                     break;
                 }
             }
+
         }
+
+        for (int nowIndex = 0; nowIndex < nowSelectedIndexes.Length; nowIndex++)
+        {
+            int nowButtonIndex = nowIndex;
+            questionButtons[nowButtonIndex].onClick.AddListener(() => AnswerButtonClick(nowSelectedIndexes[nowButtonIndex], nowButtonIndex));
+        }
+
         yield return null;
     }
 
-    IEnumerator Timer()
+    private void Timer()
     {
-        while (true)
+        if (NowLimitTime > 0 && nowGameState == NowGameState.Gaming)
         {
             NowLimitTime -= Time.deltaTime;
-            if (NowLimitTime <= 0)
-            {
-                break;
-            }
-            yield return null;
         }
     }
 
@@ -282,18 +294,32 @@ public class IngameManager : Singleton<IngameManager>
         }
     }
 
-    public void AnswerButtonClick(int nowAnswerIndex) //질문 인덱스
+    public void AnswerButtonClick(int nowAnswerIndex, int buttonIndex) //질문 인덱스
     {
-        determiningDuplicateQuestions[nowAnswerIndex] = true;
-        questionButtonsObj.SetActive(false);
-        StartCoroutine(RandQuestionSetting());
+        if (isAnswering == false)
+        {
+            isAnswering = true;
 
-        StartCoroutine(QNA(nowAnswerIndex));
+            for (int nowIndex = 0; nowIndex < 3; nowIndex++)
+            {
+                if (nowIndex != buttonIndex)
+                {
+                    determiningDuplicateQuestions[nowSelectedIndexes[nowIndex]] = false;
+                }
+            }
+
+            determiningDuplicateQuestions[nowAnswerIndex] = true;
+            questionButtonsObj.SetActive(false);
+
+            StartCoroutine(QNA(nowAnswerIndex));
+            StartCoroutine(RandQuestionSetting());
+        }
     }
 
     IEnumerator QNA(int nowAnswerIndex)
     {
         WaitForSeconds sayDelay = new WaitForSeconds(2f);
+        int probabilityOfTheAnswer = Random.Range(1, 101);
         int randAnswer = Random.Range(1, 8);
         
         detectiveText.text = "";
@@ -305,9 +331,46 @@ public class IngameManager : Singleton<IngameManager>
         suspectText.text = "";
         suspectSpeechBubble.SetActive(true); //범인 대사창 띄우기
 
-        SuspectAnswer(randAnswer);
+        if (probabilityOfTheAnswer <= 45)
+        {
+            var correctAnswerInstance = CorrectAnswer.Instance;
+
+            switch (nowAnswer)
+            {
+                case "공원":
+                    SuspectAnswer(correctAnswerInstance.CorrectAnswerWhenPark[nowAnswerIndex]);
+                    break;
+                case "공사장":
+                    SuspectAnswer(correctAnswerInstance.CorrectAnswerWhenConstructionSite[nowAnswerIndex]);
+                    break;
+                case "골목길":
+                    SuspectAnswer(correctAnswerInstance.CorrectAnswerWhenAlleys[nowAnswerIndex]);
+                    break;
+                case "폐가":
+                    SuspectAnswer(correctAnswerInstance.CorrectAnswerWhenDesertedHouse[nowAnswerIndex]);
+                    break;
+                case "학교":
+                    SuspectAnswer(correctAnswerInstance.CorrectAnswerWhenSchool[nowAnswerIndex]);
+                    break;
+            }
+        }
+        else
+        {
+            SuspectAnswer(randAnswer);
+        }
 
         yield return sayDelay;
+
+        isAnswering = false;
+
+        GameObject nowSpawnQnAObj = Instantiate(QnAObj, transform.position, QnAObj.transform.rotation);
+        nowSpawnQnAObj.transform.SetParent(scrollContent.transform);
+        var qnaComponent = nowSpawnQnAObj.GetComponent<QnAButton>();
+
+        qnaComponent.nowQuestionIndex = nowAnswerIndex;
+        qnaComponent.QuestionText.text = detectiveText.text;
+        qnaComponent.AnswerText.text = suspectText.text;
+        nowSpawnQnAObj.transform.localScale = new Vector3(1, 1, 1);
 
         goNextQuestionButtonObj.SetActive(true);
     }
@@ -318,6 +381,20 @@ public class IngameManager : Singleton<IngameManager>
         suspectSpeechBubble.SetActive(false);
         goNextQuestionButtonObj.SetActive(false);
         questionButtonsObj.SetActive(true);
+    }
+
+    public void isCorrectAnswer()
+    {
+        print(wroteAnswer.text);
+        print(nowAnswer);
+        if (wroteAnswer.text == nowAnswer)
+        {
+            print("정답");
+        }
+        else
+        {
+            NowLimitTime -= 25;
+        }
     }
 
     private void SuspectAnswer(int answerKind)
