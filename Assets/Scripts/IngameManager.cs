@@ -18,9 +18,6 @@ public class IngameManager : Singleton<IngameManager>
     [Tooltip("현재 정답")]
     public string nowAnswer;
 
-    [Tooltip("입력한 정답")]
-    private string nowInputAnswer;
-    
     [Space(20)]
 
     [Header("질문 관련 변수")]
@@ -383,18 +380,30 @@ public class IngameManager : Singleton<IngameManager>
         questionButtonsObj.SetActive(true);
     }
 
-    public void isCorrectAnswer()
+    public void IsCorrectAnswer()
     {
-        print(wroteAnswer.text);
-        print(nowAnswer);
+        StartCoroutine(CorrectAnswerAnim());
+    }
+
+    IEnumerator CorrectAnswerAnim()
+    {
         if (wroteAnswer.text == nowAnswer)
         {
+            InputAnswerObj.SetActive(false);
             print("정답");
         }
         else
         {
+            InputAnswerObj.SetActive(false);
+            wroteAnswer.text = "";
+            suspectText.text = "";
             NowLimitTime -= 25;
+            suspectSpeechBubble.SetActive(true);
+            suspectText.DOText($"저는 그곳에 있지 않았습니다..", 1.5f);
+            yield return new WaitForSeconds(2);
+            goNextQuestionButtonObj.SetActive(true);
         }
+        yield return null;
     }
 
     private void SuspectAnswer(int answerKind)
