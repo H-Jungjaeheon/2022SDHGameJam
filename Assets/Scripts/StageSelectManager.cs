@@ -186,6 +186,6 @@ public class StageSelectManager : MonoBehaviour
                 break;
         }
         
-        SceneManager.LoadScene("IngameTest");
+        SceneManager.LoadScene("Ingame");
     }
 }

@@ -4,6 +4,7 @@ using UnityEngine;
 using UnityEngine.UI;
 using TMPro;
 using DG.Tweening;
+using UnityEngine.SceneManagement;
 
 public enum NowGameState
 {
@@ -50,6 +51,8 @@ public class IngameManager : Singleton<IngameManager>
 
     private int[] nowSelectedIndexes = new int[3];
 
+    private int rightNowAnswerIndex;
+
     [Space(20)]
 
     [SerializeField]
@@ -85,6 +88,10 @@ public class IngameManager : Singleton<IngameManager>
     private Text suspectText;
 
     [SerializeField]
+    [Tooltip("스테이지 종료 시 결과 텍스트")]
+    private TextMeshProUGUI stageEndText;
+
+    [SerializeField]
     [Tooltip("현재 맞춰야 하는 주제 안내 텍스트")]
     private TextMeshProUGUI typeOfAnswerText;
 
@@ -116,11 +123,25 @@ public class IngameManager : Singleton<IngameManager>
     [Tooltip("스크롤 리스트에 추가될 QnA 오브젝트")]
     private GameObject QnAObj;
 
+    [SerializeField]
+    [Tooltip("게임 끝나면 띄우는 창 오브젝트")]
+    private GameObject gameEndObj;
+
     private float nowLimitTime;
 
     private bool isTurnOn;
 
+    private bool isOpenInputAnswerObjAble;
+
     public bool isAnswering;
+
+    private bool isSkillUseAble;
+
+    private bool nowSkillUsing;
+
+    private TextMeshProUGUI nowQnAObjAnswerText;
+
+    private QnAButton qnaComponent;
 
     public float NowLimitTime
     {
@@ -133,27 +154,35 @@ public class IngameManager : Singleton<IngameManager>
             }
             else
             {
+                stageEndText.text = "Game Over...";
                 nowLimitTime = 0;
+                gameEndObj.SetActive(true);
             }
             limitTimeImageBar.fillAmount = nowLimitTime / maxLimitTime;
         }
     }
+    
+    [SerializeField]
+    [Tooltip("스킬 쿨타임 이미지")]
+    private Image skillCoolTimeImage;
 
     [SerializeField]
     [Tooltip("최대 스킬 쿨타임")]
     public float maxSkillCoolTime;
 
-    private float nowSkillCoolTime;
+    public float nowSkillCoolTime;
 
     public float NowSkillCoolTime
     {
         get { return nowSkillCoolTime; }
         set 
         {
-            if (value < maxSkillCoolTime)
+            if (value <= 0)
             {
-                
+                nowSkillCoolTime = 0;
             }
+            nowSkillCoolTime = value;
+            skillCoolTimeImage.fillAmount = NowSkillCoolTime / maxSkillCoolTime;
         }
     }
 
@@ -161,6 +190,7 @@ public class IngameManager : Singleton<IngameManager>
 
     private void Awake()
     {
+        isOpenInputAnswerObjAble = true;
         nowLimitTime = maxLimitTime;
     }
 
@@ -179,6 +209,10 @@ public class IngameManager : Singleton<IngameManager>
     void Update()
     {
         Timer();
+        if (NowSkillCoolTime > 0)
+        {
+            NowSkillCoolTime -= Time.deltaTime;
+        }
     }
 
     private void RandAnserSetting()
@@ -281,18 +315,16 @@ public class IngameManager : Singleton<IngameManager>
 
     public void InputAnswerObjSetActive(bool isSetActiveTrue)
     {
-        if (isSetActiveTrue)
+        if (isOpenInputAnswerObjAble)
         {
             InputAnswerObj.SetActive(isSetActiveTrue);
-        }
-        else
-        {
-            InputAnswerObj.SetActive(isSetActiveTrue);
+            questionButtonsObj.SetActive(!isSetActiveTrue);
         }
     }
 
     public void AnswerButtonClick(int nowAnswerIndex, int buttonIndex) //질문 인덱스
     {
+        isOpenInputAnswerObjAble = false;
         if (isAnswering == false)
         {
             isAnswering = true;
@@ -322,6 +354,7 @@ public class IngameManager : Singleton<IngameManager>
         detectiveText.text = "";
         detectiveSpeechBubble.SetActive(true); //주인공 대사창 띄우기
         detectiveText.DOText($"{questions[nowAnswerIndex]}", 1.5f);
+        rightNowAnswerIndex = nowAnswerIndex;
 
         yield return sayDelay;
 
@@ -362,18 +395,24 @@ public class IngameManager : Singleton<IngameManager>
 
         GameObject nowSpawnQnAObj = Instantiate(QnAObj, transform.position, QnAObj.transform.rotation);
         nowSpawnQnAObj.transform.SetParent(scrollContent.transform);
-        var qnaComponent = nowSpawnQnAObj.GetComponent<QnAButton>();
+        qnaComponent = nowSpawnQnAObj.GetComponent<QnAButton>();
 
         qnaComponent.nowQuestionIndex = nowAnswerIndex;
         qnaComponent.QuestionText.text = detectiveText.text;
         qnaComponent.AnswerText.text = suspectText.text;
         nowSpawnQnAObj.transform.localScale = new Vector3(1, 1, 1);
 
+        nowQnAObjAnswerText = qnaComponent.AnswerText;
+        nowQnAObjAnswerText.text = qnaComponent.AnswerText.text;
+
+        isSkillUseAble = true;
         goNextQuestionButtonObj.SetActive(true);
     }
 
     public void PressGoNextQuestionButton()
     {
+        isSkillUseAble = false;
+        isOpenInputAnswerObjAble = true;
         detectiveSpeechBubble.SetActive(false);
         suspectSpeechBubble.SetActive(false);
         goNextQuestionButtonObj.SetActive(false);
@@ -387,10 +426,12 @@ public class IngameManager : Singleton<IngameManager>
 
     IEnumerator CorrectAnswerAnim()
     {
+        isOpenInputAnswerObjAble = false;
         if (wroteAnswer.text == nowAnswer)
         {
             InputAnswerObj.SetActive(false);
-            print("정답");
+            stageEndText.text = "Game Clear!";
+            gameEndObj.SetActive(true);
         }
         else
         {
@@ -433,4 +474,88 @@ public class IngameManager : Singleton<IngameManager>
                 break;
         }
     }
+
+    private void SkillSuspectAnswer(int answerKind) //텍스트 바꾸기
+    {
+        switch (answerKind)
+        {
+            case 1:
+                nowQnAObjAnswerText.text = $"맞습니다.";
+                break;
+            case 2:
+                nowQnAObjAnswerText.text = $"약간 그렇습니다.";
+                break;
+            case 3:
+                nowQnAObjAnswerText.text = $"아닙니다.";
+                break;
+            case 4:
+                nowQnAObjAnswerText.text = $"약간 아닙니다.";
+                break;
+            case 5:
+                nowQnAObjAnswerText.text = $"애매합니다.";
+                break;
+            case 6:
+                nowQnAObjAnswerText.text = $"생각나지 않습니다.";
+                break;
+            case 7:
+                nowQnAObjAnswerText.text = $"상황에 따라서 다른 것 같습니다.";
+                break;
+        }
+    }
+
+    public void UseSkill() => StartCoroutine(SkillEvent());
+
+    IEnumerator SkillEvent()
+    {
+        if (nowSkillCoolTime <= 0 && isSkillUseAble && nowSkillUsing == false)
+        {
+            print("tlfgod");
+
+            WaitForSeconds sayDelay = new WaitForSeconds(2f);
+
+            nowSkillUsing = true;
+
+            detectiveText.text = "";
+            detectiveSpeechBubble.SetActive(true); //주인공 대사창 띄우기
+            detectiveText.DOText($"정말 그 답이 맞습니까?", 1.5f);
+
+            yield return sayDelay;
+
+            suspectText.text = "";
+            suspectSpeechBubble.SetActive(true); //범인 대사창 띄우기
+            suspectText.DOText($"..이게 맞는 답입니다.", 1.5f);
+
+            var correctAnswerInstance = CorrectAnswer.Instance;
+
+            switch (nowAnswer)
+            {
+                case "공원":
+                    SkillSuspectAnswer(correctAnswerInstance.CorrectAnswerWhenPark[rightNowAnswerIndex]);
+                    break;
+                case "공사장":
+                    SkillSuspectAnswer(correctAnswerInstance.CorrectAnswerWhenConstructionSite[rightNowAnswerIndex]);
+                    break;
+                case "골목길":
+                    SkillSuspectAnswer(correctAnswerInstance.CorrectAnswerWhenAlleys[rightNowAnswerIndex]);
+                    break;
+                case "폐가":
+                    SkillSuspectAnswer(correctAnswerInstance.CorrectAnswerWhenDesertedHouse[rightNowAnswerIndex]);
+                    break;
+                case "학교":
+                    SkillSuspectAnswer(correctAnswerInstance.CorrectAnswerWhenSchool[rightNowAnswerIndex]);
+                    break;
+            }
+
+            yield return sayDelay;
+
+            goNextQuestionButtonObj.SetActive(true);
+            nowSkillUsing = false;
+            nowSkillCoolTime = maxSkillCoolTime;
+            yield return null;
+        }
+    }
+
+    public void GoToTitle() => SceneManager.LoadScene("Title");
+
+    public void ReStart() => SceneManager.LoadScene("Ingame");
 }
