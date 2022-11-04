@@ -2,6 +2,7 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.Audio;
+using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 
 public class UI : MonoBehaviour
@@ -15,9 +16,7 @@ public class UI : MonoBehaviour
     public Slider Effectslider;
     public Slider BackGroundslider;
 
-    
-    public AudioClip clip;
-    public AudioSource efSound;
+    //public AudioClip clip;
 
     void Start()
     {
@@ -27,6 +26,15 @@ public class UI : MonoBehaviour
     void Update()
     {
         //SoundManager.instance.SFXPlay("",clip);
+        _start();
+    }
+
+    private void _start()
+    {
+        if(Input.anyKeyDown)
+        {
+            SceneManager.LoadScene(1);
+        }
     }
 
     public void First() // 설정 초기화
@@ -50,7 +58,6 @@ public class UI : MonoBehaviour
     {
         Setting_Button.gameObject.SetActive(false);
         Setting_Window.gameObject.SetActive(true);
-        SoundManager.instance.SFXPlay("UI", clip);
     }
 
     public void Setting_Window_OK() // 메인 화면 활성화

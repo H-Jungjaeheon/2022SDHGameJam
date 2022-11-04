@@ -34,13 +34,14 @@ public class SoundManager : MonoBehaviour
         }
     }
 
-    public void SFXPlay(string sfxName, AudioSource clip)
+    public void SFXPlay(string sfxName, AudioClip clip)
     {
         GameObject go = new GameObject(sfxName + "Sound");
         AudioSource audiosource = go.AddComponent<AudioSource>();
+        audiosource.clip = clip;
         audiosource.Play();
 
-        Destroy(go, clip);
+        Destroy(go, clip.length);
     }
 
     public void BgSoundPlay(AudioClip clip)
