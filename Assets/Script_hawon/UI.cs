@@ -15,6 +15,10 @@ public class UI : MonoBehaviour
     public Slider Effectslider;
     public Slider BackGroundslider;
 
+    
+    public AudioClip clip;
+    public AudioSource efSound;
+
     void Start()
     {
         Screen.SetResolution(1600, 900, true);
@@ -22,7 +26,7 @@ public class UI : MonoBehaviour
 
     void Update()
     {
-
+        //SoundManager.instance.SFXPlay("",clip);
     }
 
     public void First() // 설정 초기화
@@ -46,6 +50,7 @@ public class UI : MonoBehaviour
     {
         Setting_Button.gameObject.SetActive(false);
         Setting_Window.gameObject.SetActive(true);
+        SoundManager.instance.SFXPlay("UI", clip);
     }
 
     public void Setting_Window_OK() // 메인 화면 활성화
