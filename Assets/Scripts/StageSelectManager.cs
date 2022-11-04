@@ -51,7 +51,7 @@ public class StageSelectManager : MonoBehaviour
                         switch (nowAnswerIndex)
                         {
                             case 0:
-                                listOfAnswersByStage[nowStageIndex, nowAnswerIndex] = "공터";
+                                listOfAnswersByStage[nowStageIndex, nowAnswerIndex] = "공원";
                                 break;
                             case 1:
                                 listOfAnswersByStage[nowStageIndex, nowAnswerIndex] = "공사장";
@@ -186,6 +186,6 @@ public class StageSelectManager : MonoBehaviour
                 break;
         }
         
-        SceneManager.LoadScene("IngameTest");
+        SceneManager.LoadScene("Ingame");
     }
 }
